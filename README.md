@@ -1,108 +1,86 @@
-# Flask App Deployment with Ansible
+---
 
-This project deploys a Flask application connected to a MySQL/MariaDB database in a production environment using Ansible. The app is served by Gunicorn, with Nginx as a reverse proxy, ensuring a production-ready setup.
+# Flask App Deployment with Gunicorn and Nginx in Production
+
+This project automates the deployment of a Flask application connected to a MySQL database, using Gunicorn as the WSGI HTTP server and Nginx as a reverse proxy. The deployment is managed via an Ansible playbook that includes roles for setting up the necessary components.
 
 ## Project Structure
 
-- **`ansible.cfg`**: Ansible configuration file, setting options for privilege escalation, host key checking, and other default behaviors.
-- **`app.py`**: The Flask application that connects to a MySQL database. It provides basic API endpoints to interact with the database.
-- **`inventory.txt`**: Inventory file specifying target hosts (IP addresses) and SSH credentials for running the Ansible playbook.
-- **`playbook.yml`**: The main Ansible playbook that orchestrates the entire deployment by calling individual roles or tasks.
-- **`group_vars/`**: Contains variables specific to host groups, allowing centralized configuration management for `db_and_web_servers`.
-- **`tasks/`**: Houses individual task files, each dedicated to setting up specific components like `deploy_db.yml` (for the database), `deploy_nginx.yml` (for Nginx), and `deploy_web.yml` (for the Flask app with Gunicorn).
-
-## File Details
-
-### `app.py`
-
-This file contains the Flask app code. Key functionalities include:
-
-- **MySQL Configuration**: Reads environment variables for MySQL configuration, defaulting to:
-  - `host`: `127.0.0.1`
-  - `user`: `db_user`
-  - `password`: `Passw0rd`
-  - `database`: `employee_db`
-
-- **Routes**:
-  - `/`: Basic welcome message.
-  - `/how_are_you`: Returns a friendly message.
-  - `/read_from_database`: Connects to the database and retrieves employee names from the `employees` table, returning them in a list format.
-
-### `playbook.yml`
-
-This is the primary Ansible playbook that automates the deployment process by calling individual tasks from `tasks/`, such as:
-
-1. **Database Setup (`tasks/deploy_db.yml`)**:
-   - Creates the database `employee_db`.
-   - Sets up a user (`db_user`) with access permissions to the database.
-   - Creates an `employees` table and inserts sample data.
-
-2. **Gunicorn Setup (`tasks/deploy_web.yml`)**:
-   - Configures Gunicorn as a systemd service to serve the Flask app.
-
-3. **Nginx Configuration (`tasks/deploy_nginx.yml`)**:
-   - Configures Nginx as a reverse proxy, forwarding requests to Gunicorn on `127.0.0.1:5000`.
-
-### `inventory.txt`
-
-The inventory file defines the remote servers to configure. 
-
 ```plaintext
-[db_and_web_servers]
-db_and_web_server1 ansible_host=10.10.0.115 ansible_ssh_pass=Passw0rd
-db_and_web_server2 ansible_host=10.10.0.116 ansible_ssh_pass=Passw0rd
+.
+├── app.py                # Flask application source file
+├── playbook.yml          # Main Ansible playbook to deploy the application
+├── group_vars/           # Directory containing encrypted Ansible group variables
+│   └── db_and_web_servers.yml  # Encrypted database and app credentials (using Ansible Vault)
+├── roles/                # Ansible roles to manage different components of the deployment
+│   ├── mysql_db/         # Role to configure and set up MySQL database
+│   │   └── tasks/
+│   │       └── main.yml  # MySQL database setup tasks
+│   ├── flask_web/        # Role to configure Flask app deployment
+│   │   └── tasks/
+│   │       └── main.yml  # Flask app setup tasks
+│   ├── nginx/            # Role to configure Nginx as reverse proxy
+│   │   └── tasks/
+│   │       └── main.yml  # Nginx setup tasks
+│   └── packages/         # Role to ensure all required packages are installed
+│       └── tasks/
+│           └── main.yml  # Package installation tasks
+└── README.md             # Project documentation
 ```
 
-Each entry includes:
-- `ansible_host`: IP address of the server.
-- `ansible_ssh_pass`: Password for SSH access.
+## Pre-Requisites
 
-### `group_vars/db_and_web_servers.yml`
+1. **Ansible**: Ensure Ansible is installed on the control machine.
+2. **Ansible Vault**: Sensitive credentials are stored in an encrypted file using Ansible Vault.
+3. **Inventory File**: The `inventory` file is encrypted and must be decrypted using Ansible Vault before use.
 
-Contains group-specific variables for the `db_and_web_servers` group, centralizing configuration for the database and web server settings used in `playbook.yml`.
+## Flask Application (`app.py`)
 
-### `ansible.cfg`
+The Flask app connects to a MySQL database using MySQL configurations set in environment variables. It offers basic endpoints to test database connectivity and fetch data:
 
-This file configures Ansible settings:
-- **`host_key_checking = False`**: Disables SSH host key checking.
-- **Privilege Escalation**:
-  - `become = True`
-  - `become_method = sudo`
-  - `become_user = adrian`
+- **GET /** - Welcome message.
+- **GET /how_are_you** - Returns a sample response.
+- **GET /read_from_database** - Fetches employee names from the `employees` table in MySQL.
 
-## Prerequisites
+## Playbook (`playbook.yml`)
 
-- Ansible installed on the control machine (your local or another machine).
-- SSH access to the target servers specified in `inventory.txt`.
+The `playbook.yml` file is the main entry point for the deployment. It includes the following roles:
 
-## Running the Playbook
+- **mysql_db**: Installs and configures MySQL server, sets up the database, user, and grants privileges.
+- **flask_web**: Configures the Flask application in the production environment.
+- **nginx**: Configures Nginx as a reverse proxy to handle incoming HTTP requests to Gunicorn.
+- **packages**: Ensures all necessary packages (e.g., Python, Gunicorn, Nginx, MySQL) are installed on the servers.
 
-1. **Test Connection**:
-   Test the connection to your servers with:
+## How to Run the Playbook
+
+1. **Decrypt Inventory and Variable Files**: 
+   Ensure you have decrypted the `inventory` and `group_vars/db_and_web_servers.yml` files:
 
    ```bash
-   ansible -i inventory.txt -m ping all
+   ansible-vault decrypt inventory
+   ansible-vault decrypt group_vars/db_and_web_servers.yml
    ```
-
-   This should return a successful `pong` response from each server.
 
 2. **Run the Playbook**:
-   Execute the playbook to deploy the app:
+   Execute the playbook with the following command:
 
    ```bash
-   ansible-playbook playbook.yml -i inventory --ask-vault-pass
+   ansible-playbook -i inventory --ask-vault-pass playbook.yml
    ```
 
-   The playbook will:
-   - Install and configure all necessary software on each server.
-   - Set up the database and insert sample data.
-   - Deploy and start the Flask application with Gunicorn and Nginx.
+   You will be prompted for the Ansible Vault password used to encrypt sensitive information.
 
-3. **Access the Application**:
-   Open a web browser and go to the IP address of any configured server (without specifying port 5000). For example:
+## Security Considerations
 
-   ```
-   http://10.10.0.115
-   ```
+- **Ansible Vault**: All sensitive data, including database passwords and host information, is stored in encrypted files.
+- **Environment Variables**: Database credentials are passed securely to the Flask app via environment variables configured within the Ansible roles.
 
-   Nginx will forward requests to Gunicorn, which serves the Flask app.
+## Additional Information
+
+The deployment configures:
+
+- **MySQL Database**: Initialized with an `employees` table.
+- **Gunicorn**: Configured as the WSGI server to serve the Flask app.
+- **Nginx**: Configured to reverse proxy requests to Gunicorn on port 5000, handling HTTP requests at port 80.
+
+Ensure that your server’s firewall allows traffic on ports 80 (HTTP) and 5000 (Flask app port for testing) if accessed directly.
