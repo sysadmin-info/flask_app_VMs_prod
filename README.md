@@ -90,7 +90,7 @@ This file configures Ansible settings:
    Execute the playbook to deploy the app:
 
    ```bash
-   ansible-playbook -i inventory.txt playbook.yml
+   ansible-playbook playbook.yml -i inventory --ask-vault-pass
    ```
 
    The playbook will:
