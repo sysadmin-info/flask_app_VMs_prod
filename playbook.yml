@@ -1,11 +1,19 @@
 ---
-- name: Deploy Flask App with Gunicorn and Nginx in Production
-  hosts: db_and_web_servers
+- name: Deploy a mysql DB
+  hosts: db_server
   become: yes
   become_method: sudo
   remote_user: adrian
   roles:
-    - packages
+    - db_packages
     - mysql_db
+
+- name: Deploy a Web Server
+  hosts: web_server
+  become: yes
+  become_method: sudo
+  remote_user: adrian
+  roles:
+    - web_packages
     - flask_web
     - nginx

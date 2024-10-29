@@ -1,2 +1,5 @@
 ---
-# handlers file for mysql_db
+- name: Restart MariaDB
+  service:
+    name: mariadb
+    state: restarted
