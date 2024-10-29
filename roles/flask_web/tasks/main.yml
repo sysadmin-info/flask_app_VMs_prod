@@ -1,0 +1,52 @@
+---
+- name: Create application directory
+      file:
+        path: "/opt/gunicorn_app"
+        state: directory
+        mode: '0755'
+      tags: setup
+
+    - name: Copy application file
+      copy:
+        src: app.py
+        dest: "/opt/gunicorn_app/"
+        mode: '0755'
+      tags: setup
+
+    - name: Set up virtual environment
+      command: python3 -m venv /opt/gunicorn_app/venv
+      tags: venv
+
+    - name: Install Flask, Gunicorn, and other dependencies in virtual environment
+      command: "/opt/gunicorn_app/venv/bin/pip install Flask gunicorn mysql-connector-python flask-mysqldb"
+      tags: dependencies
+
+    # Gunicorn Service Setup
+    - name: Create Gunicorn systemd service file
+      copy:
+        dest: /etc/systemd/system/gunicorn.service
+        content: |
+          [Unit]
+          Description=Gunicorn instance to serve Flask app
+          After=network.target
+
+          [Service]
+          User=www-data
+          Group=www-data
+          WorkingDirectory=/opt/gunicorn_app
+          ExecStart=/opt/gunicorn_app/venv/bin/gunicorn -w 4 -b 127.0.0.1:5000 app:app
+
+          [Install]
+          WantedBy=multi-user.target
+      tags: gunicorn_service
+
+    - name: Reload systemd daemon to recognize new Gunicorn service
+      command: systemctl daemon-reload
+      tags: gunicorn_service
+
+    - name: Enable and start Gunicorn service
+      systemd:
+        name: gunicorn
+        enabled: yes
+        state: started
+      tags: gunicorn_service

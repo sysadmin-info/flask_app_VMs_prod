@@ -4,21 +4,8 @@
   become: yes
   become_method: sudo
   remote_user: adrian
-  tasks:
-    - name: Ensure required packages are installed
-      apt:
-        name: "{{ item }}"
-        state: present
-      with_items:
-        - python3
-        - python3-pip
-        - python3-venv
-        - mariadb-server
-        - gunicorn
-        - nginx
-        - pkg-config
-        - default-libmysqlclient-dev
-    - import_tasks: tasks/deploy_db.yml
-    - import_tasks: tasks/deploy_web.yml
-    - import_tasks: tasks/deploy_nginx.yml
-      tags: packages
+  roles:
+    - packages
+    - mysql_db
+    - flask_web
+    - nginx

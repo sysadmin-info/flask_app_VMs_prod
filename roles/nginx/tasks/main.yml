@@ -1,0 +1,36 @@
+---
+    # Nginx Setup for Reverse Proxy
+    - name: Create Nginx configuration for Flask app
+      copy:
+        dest: /etc/nginx/sites-available/flask_app
+        content: |
+          server {
+              listen 80;
+              server_name {{ ansible_host }};
+
+              location / {
+                  proxy_pass http://127.0.0.1:5000;
+                  proxy_set_header Host $host;
+                  proxy_set_header X-Real-IP $remote_addr;
+                  proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                  proxy_set_header X-Forwarded-Proto $scheme;
+              }
+          }
+      tags: nginx
+
+    - name: Enable Nginx configuration
+      file:
+        src: /etc/nginx/sites-available/flask_app
+        dest: /etc/nginx/sites-enabled/flask_app
+        state: link
+      tags: nginx
+
+    - name: Test Nginx configuration
+      command: nginx -t
+      tags: nginx
+
+    - name: Restart Nginx to apply changes
+      service:
+        name: nginx
+        state: restarted
+      tags: nginx
