@@ -4,6 +4,8 @@
     name: "{{ item }}"
     state: present
   loop:
+    - openssh-server
+    - sudo
     - python3
     - python3-pip
     - python3-venv
